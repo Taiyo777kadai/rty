@@ -12,7 +12,19 @@ st.title('売上予測アプリ')
 
 youbi = st.selectbox('曜日区分', ['平日', '休日', '祝祭日'])
 tenki = st.selectbox('天気', ['晴れ', '雨', '曇り'])
-jissai_uriage = st.number_input('実際の売上（数字）', min_value=0, step=100)
+
+if 'yoso_100' not in st.session_state:
+    st.session_state['yoso_100'] = None
+if 'shiire_list' not in st.session_state:
+    st.session_state['shiire_list'] = None
+if 'name_list' not in st.session_state:
+    st.session_state['name_list'] = None
+if 'tanka_list' not in st.session_state:
+    st.session_state['tanka_list'] = None
+if 'prev_yoso' not in st.session_state:
+    st.session_state['prev_yoso'] = 0
+if 'prev_jissai' not in st.session_state:
+    st.session_state['prev_jissai'] = 0
 
 if st.button('予測'):
     try:
@@ -41,20 +53,11 @@ if st.button('予測'):
         yoso_100 = int(round(yoso / 100) * 100)
         st.success(f'{youbi}・{tenki}の予測売上は {yoso_100} 円です。')
 
-        # Excelファイルに追記
         wb = load_workbook(excel_path)
-        ws = wb[sheet_name]
-        ws.append([youbi, tenki, yoso_100, jissai_uriage, prev_yoso, prev_jissai])
-
-        # メニューシートに仕入れ数を記載（合計がyoso_100になるように）
         menu_ws = wb['メニュー']
         menu_header = [cell.value for cell in menu_ws[1]]
         tanka_col = menu_header.index('単価') + 1
         name_col = menu_header.index('メニュー名') + 1
-        shiire_col = len(menu_header) + 1  # 新しい列（仕入れ数）
-
-        if '仕入れ数' not in menu_header:
-            menu_ws.cell(row=1, column=shiire_col, value='仕入れ数')
 
         menu_rows = []
         tanka_list = []
@@ -84,13 +87,6 @@ if st.button('予測'):
                 shiire_list[-1] += add
                 total += add * tanka_list[-1]
 
-        for row, shiire in zip(menu_rows, shiire_list):
-            menu_ws.cell(row=row, column=shiire_col, value=shiire)
-
-        wb.save(excel_path)
-        st.info('予測値・実際の売上・仕入れ数をExcelに記載しました。')
-
-        # 仕入れ数をアプリ上に表示
         result_df = pd.DataFrame({
             'メニュー名': name_list,
             '単価': tanka_list,
@@ -99,5 +95,39 @@ if st.button('予測'):
         st.subheader('予測仕入れ数')
         st.table(result_df)
 
+        st.session_state['yoso_100'] = yoso_100
+        st.session_state['shiire_list'] = shiire_list
+        st.session_state['name_list'] = name_list
+        st.session_state['tanka_list'] = tanka_list
+        st.session_state['prev_yoso'] = prev_yoso
+        st.session_state['prev_jissai'] = prev_jissai
+
     except Exception as e:
         st.error(f'エラー: {e}')
+
+if st.session_state['yoso_100'] is not None:
+    jissai_uriage = st.number_input('実際の売上（数字）', min_value=0, step=100, key='jissai_input')
+    if st.button('記録'):
+        try:
+            wb = load_workbook(excel_path)
+            ws = wb[sheet_name]
+            ws.append([
+                youbi,
+                tenki,
+                st.session_state['yoso_100'],
+                jissai_uriage,
+                st.session_state['prev_yoso'],
+                st.session_state['prev_jissai']
+            ])
+            menu_ws = wb['メニュー']
+            menu_header = [cell.value for cell in menu_ws[1]]
+            shiire_col = len(menu_header) + 1
+            if '仕入れ数' not in menu_header:
+                menu_ws.cell(row=1, column=shiire_col, value='仕入れ数')
+            for row, shiire in zip(range(2, menu_ws.max_row + 1), st.session_state['shiire_list']):
+                menu_ws.cell(row=row, column=shiire_col, value=shiire)
+            wb.save(excel_path)
+            st.success('予測値・実際の売上・仕入れ数をExcelに記載しました。')
+            st.session_state['yoso_100'] = None
+        except Exception as e:
+            st.error(f'エラー: {e}')
