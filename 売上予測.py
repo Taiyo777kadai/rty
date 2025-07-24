@@ -5,7 +5,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import LabelEncoder
 import math
 
-excel_path = r'c:\Users\taiyo\OneDrive\デスクトップ\売り上げサンプル.xlsx'
+excel_path = r'売り上げサンプル.xlsx'
 sheet_name = '売上データ'
 
 st.title('売上予測アプリ')
