@@ -50,6 +50,7 @@ if st.button('予測'):
         menu_ws = wb['メニュー']
         menu_header = [cell.value for cell in menu_ws[1]]
         tanka_col = menu_header.index('単価') + 1
+        name_col = menu_header.index('メニュー名') + 1
         shiire_col = len(menu_header) + 1  # 新しい列（仕入れ数）
 
         if '仕入れ数' not in menu_header:
@@ -57,13 +58,17 @@ if st.button('予測'):
 
         menu_rows = []
         tanka_list = []
+        name_list = []
         for row in range(2, menu_ws.max_row + 1):
             tanka = menu_ws.cell(row=row, column=tanka_col).value
+            name = menu_ws.cell(row=row, column=name_col).value
             if tanka is not None and tanka != 0:
                 tanka_list.append(tanka)
+                name_list.append(name)
                 menu_rows.append(row)
             else:
                 tanka_list.append(0)
+                name_list.append(name)
                 menu_rows.append(row)
 
         menu_count = len([t for t in tanka_list if t > 0])
@@ -84,6 +89,15 @@ if st.button('予測'):
 
         wb.save(excel_path)
         st.info('予測値・実際の売上・仕入れ数をExcelに記載しました。')
+
+        # 仕入れ数をアプリ上に表示
+        result_df = pd.DataFrame({
+            'メニュー名': name_list,
+            '単価': tanka_list,
+            '仕入れ数': shiire_list
+        })
+        st.subheader('予測仕入れ数')
+        st.table(result_df)
 
     except Exception as e:
         st.error(f'エラー: {e}')
